@@ -3,15 +3,14 @@ package view;
 import model.DatabaseCollection;
 import model.Document;
 import model.Result;
+import model.Term;
 import service.DocumentParser;
 import service.KeywordParser;
 
 import javax.swing.*;
 import javax.swing.event.ListDataListener;
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public class MainForm {
 	public static final boolean ONLY_KEYWORDS_DISABLED = true;
@@ -57,11 +56,18 @@ public class MainForm {
 			DatabaseCollection.clear();
 			new KeywordParser(keywords.getText());
 			new DocumentParser(database.getText());
+			logTerms();
 			Document.Method method1 = Document.Method.valueOf((String) MainForm.this.method.getSelectedItem());
 			Document query1 = new Document(MainForm.this.query.getText(), "", false);
 			ResultModel model = new ResultModel(getQuerySimilarity(method1, query1));
 			results.setModel(model);
 		});
+	}
+
+	private void logTerms() {
+		DatabaseCollection.getTermMap().entrySet().stream()
+				.filter(termEntry -> !Objects.equals(termEntry.getValue().getSiblingsInfo(), ""))
+				.forEach(termEntry -> System.out.println(termEntry.getValue().getSiblingsInfo()));
 	}
 
 	private List<Result> getQuerySimilarity(Document.Method method, Document query) {
