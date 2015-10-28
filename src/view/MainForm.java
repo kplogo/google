@@ -86,7 +86,7 @@ public class MainForm {
 		newQuestion.addActionListener(e -> {
 			ResultModel model = (ResultModel) results.getModel();
 			Document query1 = model.getQuery();
-			calculateRelevance(model.getResultList(), query1, (Double) alfa.getValue(), (Double) beta.getValue(), (Double) gamma.getValue());
+			calculateRelevance(model.getResultList(), query1, (Integer) alfa.getValue(), (Integer) beta.getValue(), (Integer) gamma.getValue());
 			queryHelp.setText(query1.getQueryText());
 			Method method1 = Method.valueOf((String) MainForm.this.method.getSelectedItem());
 			showResults(method1, query1);

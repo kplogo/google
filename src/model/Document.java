@@ -76,13 +76,13 @@ public class Document {
 		if (relevance == 0) {
 			return;
 		}
+		if (relevance < 0) {
+			relevance = 0;
+		}
 		Values values = searchText.get(term);
 		if (values == null) {
 			values = new Values(term);
 			searchText.put(term, values);
-		}
-		if (relevance < 0) {
-			relevance = 0;
 		}
 		values.setRelevance(relevance);
 	}
