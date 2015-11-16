@@ -14,10 +14,9 @@ public class KeywordParser {
 
 	public KeywordParser(String filename) {
 		this.filename = filename;
-		parse();
 	}
 
-	private void parse() {
+	public void parse() {
 		List<Keyword> documentList = DatabaseCollection.getKeywordList();
 		try {
 			BufferedReader br = new BufferedReader(new FileReader(filename));

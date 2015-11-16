@@ -1,11 +1,11 @@
 package model;
 
+import model.document.Method;
+import model.document.Values;
+
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Created by Krzysztof on 15.10.2015.
- */
 public class Document {
 	private String title;
 	private String content;
@@ -33,14 +33,14 @@ public class Document {
 					term.incDocumentCount();
 				}
 			}
-			values.count++;
+			values.incCount();
 		}
 	}
 
 	public double length(Method method) {
 		double sum = 0;
 		for (Values values : searchText.values()) {
-			sum += values.get(method)*values.get(method);
+			sum += values.get(method) * values.get(method);
 		}
 		return Math.sqrt(sum);
 	}
@@ -61,15 +61,37 @@ public class Document {
 		if (values == null || queryValues == null) {
 			return 0;
 		}
-		return values.get(method) * queryValues.get(method);
+		return values.get(method) * queryValues.getRelevance() * queryValues.get(method, 1);
+	}
+
+	public double getTermRelevance(Term term) {
+		Values values = searchText.get(term);
+		if (values == null) {
+			return 0;
+		}
+		return values.getRelevance();
+	}
+
+	public void setTermRelevance(Term term, double relevance) {
+		if (relevance < 0) {
+			relevance = 0;
+		}
+		Values values = searchText.get(term);
+		if (relevance == 0) {
+			if (values != null) {
+				searchText.remove(term);
+			}
+			return;
+		}
+		if (values == null) {
+			values = new Values(term);
+			searchText.put(term, values);
+		}
+		values.setRelevance(relevance);
 	}
 
 	public String getTitle() {
 		return title;
-	}
-
-	public String getContent() {
-		return content;
 	}
 
 	@Override
@@ -78,12 +100,11 @@ public class Document {
 	}
 
 	private void calculateTF() {
-
 		double max = 0;
 		//calculate max
 		for (Values values : searchText.values()) {
-			if (values.count > max) {
-				max = values.count;
+			if (values.get(Method.COUNT) > max) {
+				max = values.get(Method.COUNT);
 			}
 		}
 		//normalize terms
@@ -92,34 +113,28 @@ public class Document {
 		}
 	}
 
-	private class Values {
-		private int count;
-		private double tf;
-		private Term term;
-
-		public Values(Term term) {
-			this.term = term;
-		}
-
-		public double get(Method method) {
-			if (method == Method.COUNT) {
-				return count;
-			} else if (method == Method.TF) {
-				return tf;
-			} else if (method == Method.IDF) {
-				return tf * term.getIdfValue();
-			}
+	public double getTermCount(Term term) {
+		Values values = searchText.get(term);
+		if (values == null) {
 			return 0;
 		}
+		return values.get(Method.COUNT);
 
-		public void normalize(double max) {
-			tf = count / max;
-		}
 	}
 
-	public enum Method {
-		COUNT,
-		TF,
-		IDF
+	public String getQueryText() {
+		StringBuilder sb = new StringBuilder();
+		for (Map.Entry<Term, Values> entry : searchText.entrySet()) {
+			sb.append(entry.getKey().getValue())
+					.append(":")
+					.append(entry.getValue().getRelevance())
+					.append(" ");
+		}
+		return sb.toString();
+	}
+
+
+	public String getContent() {
+		return content;
 	}
 }

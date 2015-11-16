@@ -3,6 +3,7 @@ package model;
 public class Result {
 	private final Document document;
 	private final double similarity;
+	private boolean markedAsGood;
 
 	public Result(Document document, double similarity) {
 		this.document = document;
@@ -20,7 +21,15 @@ public class Result {
 
 	@Override
 	public String toString() {
-		return similarity + ":" + document.getTitle();
+		return ((markedAsGood) ? "TAK" : "NIE") + " - " + similarity + ":" + document.getTitle();
+	}
+
+	public boolean isMarkedAsGood() {
+		return markedAsGood;
+	}
+
+	public void setMarkedAsGood(boolean markedAsGood) {
+		this.markedAsGood = markedAsGood;
 	}
 }
 

@@ -14,6 +14,7 @@ public class Term {
 	private int documentsCount;
 	private int totalCount;
 
+
 	private Term(String value) {
 		this.value = value;
 	}
@@ -23,6 +24,9 @@ public class Term {
 	}
 
 	public double getIdfValue() {
+		if (documentsCount==0){
+			return 0;
+		}
 		return Math.log(DatabaseCollection.getDocumentList().size() / documentsCount);
 	}
 
@@ -33,7 +37,7 @@ public class Term {
 	public static Term create(String termString, Term previousTerm, boolean canCreate) {
 		Map<String, Term> termMap = DatabaseCollection.getTermMap();
 		Term term = termMap.get(termString);
-		if (null == term && (canCreate || MainForm.ONLY_KEYWORDS_DISABLED)) {
+		if (null == term && (canCreate || !MainForm.isKeywordsEnabled())) {
 			term = new Term(termString);
 			termMap.put(termString, term);
 		}

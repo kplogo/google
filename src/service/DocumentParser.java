@@ -14,9 +14,8 @@ public class DocumentParser {
 
 	public DocumentParser(String filename) {
 		this.filename = filename;
-		parse();
 	}
-	private void parse(){
+	public void parse(){
 		List<Document> documentList = DatabaseCollection.getDocumentList();
 		try {
 			BufferedReader br = new BufferedReader(new FileReader(filename));
