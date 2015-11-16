@@ -131,7 +131,7 @@ public class MainForm {
 		List<Result> resultList = new ArrayList<>();
 		List<Result> list = new ArrayList<>();
 		for (Document document : DatabaseCollection.getDocumentList()) {
-			double similarity = document.similarity(query, method);
+				double similarity = document.similarity(query, method);
 			if (similarity != -1) {
 				list.add(new Result(document, similarity));
 			}

@@ -40,4 +40,12 @@ public class Values {
 	public void incCount() {
 		count++;
 	}
+
+	public double get(Method method, int i) {
+		double v = get(method);
+		if (v == 0) {
+			return i;
+		}
+		return v;
+	}
 }

@@ -61,7 +61,7 @@ public class Document {
 		if (values == null || queryValues == null) {
 			return 0;
 		}
-		return values.get(method) * queryValues.get(method) * queryValues.getRelevance();
+		return values.get(method) * queryValues.getRelevance() * queryValues.get(method, 1);
 	}
 
 	public double getTermRelevance(Term term) {
@@ -73,13 +73,16 @@ public class Document {
 	}
 
 	public void setTermRelevance(Term term, double relevance) {
-		if (relevance == 0) {
-			return;
-		}
 		if (relevance < 0) {
 			relevance = 0;
 		}
 		Values values = searchText.get(term);
+		if (relevance == 0) {
+			if (values != null) {
+				searchText.remove(term);
+			}
+			return;
+		}
 		if (values == null) {
 			values = new Values(term);
 			searchText.put(term, values);
@@ -97,7 +100,6 @@ public class Document {
 	}
 
 	private void calculateTF() {
-
 		double max = 0;
 		//calculate max
 		for (Values values : searchText.values()) {
