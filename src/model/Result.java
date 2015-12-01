@@ -1,6 +1,6 @@
 package model;
 
-public class Result {
+public class Result implements Comparable {
 	private final Document document;
 	private final double similarity;
 	private boolean markedAsGood;
@@ -30,6 +30,20 @@ public class Result {
 
 	public void setMarkedAsGood(boolean markedAsGood) {
 		this.markedAsGood = markedAsGood;
+	}
+
+	@Override
+	public int compareTo(Object other) {
+		if (!other.getClass().getSimpleName().equals("Result")) {
+			return -1;
+		}
+		double diff = this.getSimilarity() - ((Result) other).getSimilarity();
+		if (diff < 0) {
+			return 1;
+		} else if (diff > 0) {
+			return -1;
+		}
+		return 0;
 	}
 }
 

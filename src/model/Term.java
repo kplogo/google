@@ -11,6 +11,7 @@ public class Term {
 	private String value;
 	private Map<Term, Integer> previousValue = new HashMap<>();
 	private Map<Term, Integer> nextValue = new HashMap<>();
+	private Map<Sibling, Integer> siblings = new HashMap<>();
 	private int documentsCount;
 	private int totalCount;
 
@@ -34,10 +35,10 @@ public class Term {
 		return documentsCount;
 	}
 
-	public static Term create(String termString, Term previousTerm, boolean canCreate) {
+	public static Term create(String termString, Term previousTerm) {
 		Map<String, Term> termMap = DatabaseCollection.getTermMap();
 		Term term = termMap.get(termString);
-		if (null == term && (canCreate || !MainForm.isKeywordsEnabled())) {
+		if (null == term ) {
 			term = new Term(termString);
 			termMap.put(termString, term);
 		}
@@ -78,7 +79,7 @@ public class Term {
 	}
 
 	private boolean checkPhraseLimit(int value) {
-		return totalCount / 5 < value && value >5;
+		return true;//totalCount / 5 < value && value >5;
 	}
 
 
@@ -103,12 +104,20 @@ public class Term {
 		return sb.toString();
 	}
 
+	public void incSibling(Sibling item) {
+		Integer count = siblings.get(item);
+		if (count == null) {
+			siblings.put(item, 1);
+		} else {
+			siblings.put(item, count + 1);
+		}
+	}
+
 	private class Siblings {
 		private Term term;
 		private int count;
 
 		public Siblings(Term term, int count) {
-
 			this.term = term;
 			this.count = count;
 		}
