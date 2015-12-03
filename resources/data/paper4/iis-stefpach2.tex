@@ -1,0 +1,699 @@
+% This is a sample input file for the
+% Intelligent Information Systems Conference
+%
+% Please consult AUTHORS-README.txt as well.
+%------------------------------------------------------------
+
+% Obligatory document class:
+\documentclass{iisproc}
+
+% Standard LaTeX tool for including external graphics
+% (needed only if your text contains illustrations):
+\usepackage{graphicx}
+
+% A useful tool for coding complex math:
+% \usepackage{amsmath}
+
+% We strongly suggest using this package for author-year references:
+
+\usepackage{natbib}
+
+% If your text includes characters outside of ASCII, e.g., Polish
+% letters, please activate the following set of packages:
+% \usepackage{lmodern} % optional
+% \usepackage[T1]{fontenc}
+% \usepackage[utf8]{inputenc}  % or [cp1250], or [latin2], or whatever
+                               % suitable for your system
+
+% We suggest using the algorithmic package for formatting algorithms:
+% http://www.ctan.org/tex-archive/macros/latex/contrib/algorithms/
+%
+% \usepackage{algorithmic}
+
+% AUTHOR-PROVIDED LaTeX COMMANDS %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Please place your own definitions and macros here.  Do not put
+% any macro-definitions within the text body.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\title{Comparing Performance of Committee Based Approaches to Active Learning}
+
+
+% If the title is too long  for the running head, please provide a
+% shorter version here:
+% (Otherwise leave this command commented out.)
+\titlerunning{Comparing Performance of Committee \ldots{}}
+
+
+% If all authors have the same affiliation do not use the \inst
+% command:
+\author{
+Jerzy Stefanowski %\inst{1}
+  \and Mateusz Pachocki %\inst{1}
+}
+
+% If there are more than two authors, please abbreviate author list
+% for running head:
+\authorrunning{Stefanowski and Pachocki}
+
+% Affiliations of authors separated with \and:
+\affiliation{
+  Institute of Computing Science, Poznan University of Technology, Poland
+%  \and
+%  Poznan ... MP Pana afiljacja, Poland
+ }
+
+\maketitle              % typesets the title of the contribution
+
+\begin{abstract}
+In this paper we study the use of Query by Committee strategies in active learning from unlabeled examples. In this framework we compare four algorithms for creating ensembles of classifiers: bagging, boosting, decorate and random forests.  We consider the use of different measures of disagreement among components classifiers to select the most informative example to query an oracle for its label. Moreover,  we introduce a new technique, based on analysing the neighborhood of examples, which is applied to create a starting training set for generating the first  ensemble. The usefulness of all these approaches is  experimentally evaluated. Results of our experiments confirm that accurate final classifiers could be created using a relatively small number of queries to  label examples, in particular for active decorate. Simpler disagreement measures, as margins of examples or median difference are usually more effective than more advanced ones, however mainly for multi-class data. Finally, the new technique for selecting starting examples  has proved to be definitely more effective than simple sampling.
+  \keywords{active learning, query by committee,  ensembles, disagreement measures}
+\end{abstract}
+
+\section{Introduction}
+
+Machine learning techniques for supervised learning require a sufficiently
+large number of training examples. It is even claimed that the more training
+data a learning algorithm gets, the more accurate classifier should be
+induced \citep{raport}. However, in many real-life problems only a quite
+limited number of labeled examples is available. Typically these examples
+are manually labeled by human experts - which is time consuming, costly and
+unrealistic in case of processing thousands of instances. It may be
+problematic even for more automatic framework.
+%, e.g. in medical diagnostics
+%carrying out additional tests may be too costly.
+On the other hand, in many
+domains unlabeled examples are much easier to be acquired.
+In particular, it refers to Web mining or text classification.
+%, email filtering or text categorization.
+For instance, \cite{BlumMitchell} considered the
+classification of Web pages, where hand processing of pages by humans was
+very difficult, while much larger amount of unlabeled pages were easy and
+inexpensively gathered by web crawlers. Similar examples were described
+for spam filtering \citep[cf.][]{Matwin} and categorization of text
+documents \citep[cf.][]{LiereTadepalli}.
+
+Therefore, several researchers postulated that for such problems learning
+algorithms should be able to take as much advantages of unlabeled data as
+possible to produce an efficient classifier without the need for large
+amount of labeled training data. These are motivations for using a kind of
+semi-supervised approaches to construct classifiers. In a recent decade we
+could observe a growing research interest in such approaches. The most well
+known proposals are \emph{co-training} \citep{BlumMitchell} or \emph{active
+learning} \citep{Cohen}. Both of them empirically proved to work with
+relatively reduced number of labeled examples.
+
+In this paper we have chosen active learning. Generally speaking, the active
+algorithm starts with a very small number of labeled examples and analyzes unlabeled ones. As a result it presents queries (asks for labeling an example) to the expert (or
+oracle). These examples are further used to improve a classifier. The key
+issue is to select the most valuable examples and reduce
+the number of queries. Since the paper \citep{Cohen} various techniques have
+been introduced -- a brief review is given in section \ref{Related}. In
+our study, we focus attention on \emph{Query by Committee} approaches, which
+have been shown to be effective in different classification tasks
+\citep[cf.][]{Melvile,LiereTadepalli}. They are based on using a multiple
+classifier to select the most informative examples, which are the ones
+leading to a high disagreement among component classifiers. In \citep{Abe}
+boosting and bagging were used in an active way to construct such
+classifiers. More recently \cite{Melvile} introduced \emph{ActiveDecorate}
+and also showed that it significantly reduced labeling costs comparing to
+sampling strategies.
+
+
+The main aim of this paper is to experimentally compare various approaches to  committee based active learning. In some sense our
+study is inspired by earlier promising results from \citep{Melvile}.
+However, our new contribution is twofold. Firstly, in our experiments we
+extend the number of compared approaches, in particular  by taking into account random forests.
+Then, we also consider the use of other disagreement measures. Moreover, we decided to study the influence of choosing a starting set of labeled examples on the learning process. Thus,
+our other methodological contribution is  an introduction of a new technique for a focused
+selection of this starting set.
+
+\section{Previous Research}
+\label{Related}
+
+\subsection{Active Learning}
+
+According to \citep{Cohen} active learning refers to the type
+of learning where the algorithm has some control or influence over the
+training data received as input. In this sense it differs from the typical
+\emph{passive learning}, where
+the algorithm  usually needs a sufficiently large amount of data provided in
+a static way, however it does not control the choice of examples.
+The main difference is that active learning algorithm can {\em select} some
+"the most informative" examples to put into the training set and does not
+use the complete set  that may contain non-informative examples. In the
+literature, there exits different meanings of "informative" - usually the
+knowledge of the label of this examples should be the most useful to reduce
+the search through the hypothesis space, see more discussion in
+\citep{raport}.
+
+An active learning algorithm starts with an
+initial, very limited set of labeled examples (quite often containing very
+few ones) producing a first classifier. In each iteration it somehow
+analyses the pool of remaining unlabeled examples and presents a
+\emph{query} to the \emph{oracle} to ask for labeling single (or a few)
+example. Then this new labeled example is added to the current training set
+and the classifier is again induced using the increased data. This phase is
+repeated until the given stopping criterion is met.
+
+The key issue is that the query about the selected examples should be very
+informative and should allow the learning algorithm to improve learning
+process with a small training set. As it is discussed in the literature, see
+e.g. \citep{raport}, this should significantly reduce the number of labeled
+examples needed in order to get a sufficiently accurate classifier. The
+oracle is typically a human being a domain expert.
+Usually it is assumed that it returns the correct classification label for
+the particular example. Commonly experts may be reluctant to answer too
+many questions, so the number of possible labelings he is willing to do
+(i.e. number of iterations in a loop) is a candidate for the stopping
+criterion. Another option is to observe changes of the accuracy of the final
+classifier obtained in each iteration -- which may be more suitable for a
+more automatic framework or experiments.
+
+This general procedure was realized in different ways depending mainly of
+the techniques used to select the most informative examples (i.e. queries).
+In the first paper \cite{Cohen} developed a \emph{selective sampling}
+method, which draw examples from the so called uncertainty region of target
+concept. Conceptually similar is a method called \emph{uncertainty sampling}
+which selects those examples whose class membership is the most uncertain \citep{Lewis}.
+The experimental evaluations shown that they may reduce the number of
+labeled examples.
+
+
+\subsection{Query by Committee}
+
+
+Another group of active learning methods is \emph{Query by Committee} (QBC).
+According to \citep{Sueng} it is a strategy that uses many copies of
+"hypotheses" (coming from randomized learning algorithm) to select an
+unlabeled example at which their classification predictions are maximally
+spread. Then, it also uses a final ensemble of hypotheses to classify new objects.
+In the first proposal the component learning algorithm was Gibbs algorithm.
+Although it was well-theoretically analysed, practically it was
+computationally intractable \citep{Abe,raport}. Therefore, other approaches
+include using popular methods for learning multiple classifiers
+(\emph{ensembles}). In particular, quite effective in reducing labeling costs
+were two proposals of \cite{Abe} called \emph{Query by Bagging} and
+\emph{Query by Boosting}. They were constructed around the general
+scheme presented below:
+
+\noindent \textbf{Input}:  Learning algorithm -- $A$;
+                Set of labeled training examples -- $L$;
+                Set of unlabeled training examples -- $U$;
+                Number of active learning iterations -- $k$;
+                Number of selected examples -- $m$ (default 1)
+
+\noindent \textbf{Repeat} $k$ times
+\begin{enumerate}
+\item Generate a committee of classifiers,
+        $C^*=\mathit{EnsembleMethod}(A, L)$
+\item  $\forall x_j \in U$ compute $\mathit{Information\_Value}(C^*, x_j)$, based on the
+current committee
+\item  Select a subset $S$ of $m$ examples that are the most informative
+ \item Obtain label for examples in $S$ from oracle
+ \item Remove examples in $S$
+from $U$ and add to $L$
+\end{enumerate}
+\noindent \textbf{Return} $\mathit{EnsembleMethod(A, L)}$
+
+A method used to construct a committee of classifiers makes a difference
+between these approaches. The first approach is based on bagging
+\citep{breiman_1996}, which works on bootstrap sampling several times the training
+set. On the hand, Query by Boosting uses the more
+adaptive approach which sequentially constructs an ensemble by
+changing distribution of weights assigned to the training examples. In both
+versions the unlabeled example was selected to a query by a \emph{measures
+of disagreement} in the committee about its predicted label. \cite{Abe}
+proposed to use the \emph{margin} of the example -- it is defined as the
+difference between the number of votes in the committee for the most
+predicted class and that for the second predicted class. Examples with the
+smallest margins are considered as the most informative (uncertain).
+Empirical studies showed that these QBC active learning approaches were able
+to reduce several times number of labeled comparing to random selections.
+
+Recently \cite{Melvile} introduced another QBC approach, called \emph{Active
+Decorate}. Following motivations for increasing diversity of component
+classifiers they put into the active learning loop the specific
+meta-learning algorithm \emph{Decorate}. Due to the size of this paper we
+ skip its formal description and can only say that
+it uses additional artificially generated training examples to
+construct more diversified component classifiers in the ensemble. A set of
+these classifiers is constructed iteratively as in adaptive approaches. In
+each iteration the new classifier is added to the ensemble and is generated
+on the original training data augmented by a number of artificial examples
+generated by a specific model which assigns class labels to differ them from
+the current predictions of the ensemble.
+%\citep{Melvile} showed
+%experimentally that this approach can be very effective in training data
+%utilization.
+
+ \cite{Alasoft} introduced \emph{ALASoft} approach, where results of active learning are further processed to generate a more comprehensive model in a form of decision tree.
+
+\section{Our Approach to Query by Committee Based Active Learning}
+
+\subsection{Algorithms for Learning Committees}
+
+
+In our framework for using QBC  we use the generic schema
+presented as the pseudocode in the previous section. Following related works
+\citep{Abe,Melvile} we decided to choose the most effective approaches for
+generating committees of classifiers:  \emph{query by bagging}, \emph{query
+by boosting} and \emph{active decorate}. C4.5 algorithm for inducing
+decision trees was always applied to generate component classifiers in all of
+these approaches (also due to previous promising experimental results)
+% by \cite{Abe} and other researchers).
+
+Besides these approaches we decided to check the usefulness of \emph{random
+forests} as an approach to generate a committee in active learning.
+Generally speaking random forests, introduced by \cite{breiman_2001}, is a
+modification of bagging applied with decision trees, where for each node of
+the induced tree, a subset of attributes is randomly selected. Then, the
+best test in the node is calculated with a particular evaluation measure
+over the subset of attributes. This combination of bootstrap sampling of
+examples with random selection of attributes should increase diversity of
+component tree classifiers. So, it is somehow similar to motivations of
+introducing the decorate  but it should be less time consuming.
+
+\subsection{Disagreement Measures}
+
+
+Another key issue in the active learning framework concerns selection of the
+most informative unlabeled examples to be queries to the oracle.  In first
+papers,  like \citep{Cohen},  committees consisted of two classifiers only,
+so examples which were classified differently  by them were assumed to be
+uncertain. This idea was also used in the first attempts of using larger
+committees; e.g. in \citep{LiereTadepalli}  just two component classifiers
+were randomly selected and treated in a similar way.  Then, in query by
+bagging or boosting \cite{Abe} proposed to use a \emph{disagreement measure}
+of predictions of all component classifiers. They chose a \emph{margin} of
+classified examples, which was defined as a difference between the number of
+votes in the committee for the most often predicted class label and the
+number of votes for the second predicted label. Examples with the smallest
+value of the margin are treated as the most uncertain for the committee and
+therefore the most informative for active learning. Let us remark that
+similar definition of the margin was also considered by \cite{breiman_2001}
+in the context of diversification of trees in random forests.
+
+In our framework we decided to choose the generalized version of margins,
+which takes probability distributions of class predictions instead of votes
+(following inspiration from \citep{Melvile}). Let us notice that, in many
+implementations of ensembles, the base classifier can produce class
+memberships for a given example  (not only the single class label like in
+the standard way of aggregating predictions) \footnote{Such a distribution
+of membership probabilities can be extracted from the source code of WEKA,
+where we implement our framework for QBC active learning}.
+
+Let $P_{C_i, y}(x)$ denotes the probability of assigning example $x$ to class $y$ by a base classifier $C_i$. Then, the probability of assigning $x$ to class $y$ by the complete committee $C^*$ is defined as:
+\begin{equation}
+    P_y(x) = \frac{\sum_{C_i \in C^*}{P_{C_i, y}(x)}}{\mathit{size}(C^*)}
+    \label{eqn:margin-prob}
+\end{equation}
+
+The \emph{generalized margin} for $x$ is defined as the difference between the highest and the second highest predicted probabilities.
+
+Having distributions of class probabilities for base classifiers and the final ensembles it is also possible to built other measures of disagreement for decisions of classifiers inside the committee. For instance, we can define a distance between ensemble distributions and the base classifiers. In our experiments we decided to use a simple \emph{Euclidean} distance
+\begin{equation}
+    Euclidean = \sum_{i=1}^{C_{size}}{ \sqrt{(P_i(x) - C(x)^*)^2} }
+    \label{eqn:euclidean}
+\end{equation}
+\noindent where $P_i(x) $ denotes the class probability distribution given by the $i$-th classifier for the example $x$ and $C(x)^*$ corresponds to the ensemble distribution.
+
+In the similar way defined another \emph{median} measure, where we compare a median value from the class probability distribution of component base classifiers with a median for the ensemble.  The last measure comparing probability distribution is \emph{Jensen-Shannon divergence}, defined as
+\begin{equation}
+    JS(P_1, P_2, \ldots, P_n) = H(\sum_{i=1}^n{w_iP_i}) - \sum_{i=1}^n{w_iH(P_i)}
+    \label{eqn:js-divergence}
+\end{equation}
+
+\noindent where $P_i$ abbreviates $P_i(x) $, $w$ is a vote weight of classifier $C_i$ in the ensemble of size  $n$,   and $H(P)$ is the Shannon entropy of distribution for $K$ classes, i.e.   $H(P) = -\sum_{i=1}^K{p_j\log{p_j}}$.
+
+\subsection{Constructing the Starting Set}
+
+Another new methodological contribution concerns the choice of the starting
+training set used to generate the first ensemble before starting the active
+learning loop. In general its source may be different. It could be naturally
+present in the domain problem or be somehow selected by the expert. On the
+other hand, in typical experiments described in literature, the expert is
+not available and researches are using  benchmark sets of examples and
+simulate a decision of oracle by knowledge about class label of these
+examples. Usually  the starting training set is constructed by a random
+selection of examples from the pool of labeled training data  -- in many
+studies its size is very limited; even it may contain a single example / or
+single examples per class.
+
+However, algorithms like bagging or boosting may require a good sample of
+examples to create an ensemble, which could make reasonable decisions. This
+is way we decided to study in our experiments another techniques of creating
+this starting training set. As in the experiment the set of labeled examples
+is available, we propose to select the first set by a kind of a focused
+approach, which prefers choosing among more certain examples. We adopt an
+edited k-nearest neighbor method, which was introduced by \citep{ ECML} to
+improve classification of imbalanced minority classes. The current
+modification chooses, so called \emph{safe certain} examples.  A learning
+example is safe if it is correctly re-classiﬁed by its all \emph{k nearest
+neighbors} (i.e. all its $k$ neighbors have the same class label as it).  We
+first scan all available examples using this principle, and then randomly
+select the required number of safe examples to the starting training set.
+
+Of course this method is reasonable in the experiments where expert's decisions are simulated on the set of labeled examples. For active learning with real unlabeled examples it is not directly applicable. However, first we want to use it in controlled experimental framework to study the influence of the construction of the starting set as it was not studied in the literature. As the second point, we think that the counterpart of the $k$-nn method for unlabeled examples may be the use of an appropriate cluster analysis algorithm and to select among examples representing rather the inside parts of the cluster than borders or being outliers. A possible solution could be an adaptation of the density based algorithm DBSCANN that uses also an idea of local neighborhood to detect dense region and identify core points, borderline or outliers \citep{Dbscann}. Due to the time limit we were unable to make an appropriate  adaptation of such an algorithm for the current paper.
+
+
+\section{Experimental Evaluation}
+
+
+The first aim of our experiments was to compare the performance of four
+following different approaches to  Query by Committee Based Active Learning:
+\emph{query by bagging}, \emph{query by
+boosting}, \emph{active decorate}, \emph{query by random forests}. In all
+approaches, component classifiers were decision trees learned by J4.8
+algorithm (with standard parameters). All implementations were based on the
+Weka toolkit\footnote{see www.cs.waikato.ac.nz/ml/weka}. The maximal size of committees
+for all approaches was set to 15, and for \emph{active decorate} the number
+of internal iterations was equal to 50 (this choice was based on studying previous
+research by \cite{Melvile}). The random selection of attributes in
+\emph{random forests} was done as proposed in \cite{breiman_2001}. During experiments we also increased the number of trees in \emph{random forests} to 50.
+
+
+\begin{table}[ht]
+\caption{Characteristic of data sets.}\label{tab:datasets}
+\begin{center}
+\scalebox{1}{
+\begin{tabular}{|c|ccc|}
+\hline   Data set & \# objects & \# attributes & \# classes \\ [0.5ex]
+\hline Breast Cancer Wiscon. & 683 & 9 & 2 \\ Credit German & 1000 & 20 & 2
+\\ Diabetes & 768 & 8 & 2 \\ Ionosphere & 351 & 34 & 2 \\ Soybean & 683 & 35
+& 15 \\ Wine & 178 & 13 & 13 \\ \hline
+\end{tabular}
+}
+\end{center}
+\end{table}
+
+
+
+We evaluated their performance on 6 data sets listed in Table \ref{tab:datasets}.
+They come from the UCI repository \footnote{UCI Machine Learning Repository.
+University of California at Irvine; see
+www.ics.uci.edu/~mlearn/MLRepositoru.html}.  Some of them are known
+to be hard to learn by standard algorithms. We chose them as they were previously
+often used in  previous papers on using query by committees.
+
+
+
+\begin{figure}[!ht]
+    \begin{center}
+%        \includegraphics[scale=0.35]{fig/soybean_avg.eps}
+       \includegraphics[scale=0.35]{fig/soybean_avg.pdf}
+    \end{center}
+    \caption{Comparing different active learners on \textit{Soybean} -- Random forests with 15 component trees.}
+    \label{fig:soybean-avg}
+\end{figure}
+
+\begin{figure}[!ht]
+    \begin{center}
+%        \includegraphics[scale=0.35]{fig/soybean-new_avg.eps}
+        \includegraphics[scale=0.35]{fig/soybean-new_avg.pdf}
+    \end{center}
+    \caption{Comparing different active learners on \textit{Soybean} -- Random forests with 50 component trees.}
+    \label{fig:soybean-new-avg}
+\end{figure}
+
+
+The classification accuracy was the main evaluation criterion and it was
+estimated by 10 fold stratified cross validation repeated 5 times. For each
+data set we generated a learning curve expressing the accuracy as a function
+of the number of available training examples. More precisely, in each
+experiment (fold of cross-validation) the training part was treated as a
+pool of unlabeled examples and in each iteration of active learning the
+given approach processed them and selected the most informative example to add
+to the current training set. We did not stop active learning until all
+examples were added, so curves illustrate performance of all algorithms
+finishing with the same number of examples. Let us remark that we present
+graphically results averaged over several runs of cross validation and curves are
+not additionally smoothed, so one can observe slight fluctuations of plots.
+In all figures, plots for compared approaches are described using the following
+abbreviations: \textbf{qbag} -- \emph{query by bagging}, \textbf{qboost} --\emph{query by
+boosting}, \textbf{ad} -- \emph{active decorate}, \textbf{rf} --\emph{query by random
+forests}.
+
+
+All compared approaches begin with a starting training set of one labeled
+example (randomly chosen), then a \emph{single unlabeled example} was
+selected in each iteration of active learning. In these experiments  the
+\emph{margin} of the example was used as the disagreement measure.  Firstly
+we noticed that \emph{random forests} nearly always needed more labeled
+examples than other approaches and its figure was quite often the lowest ,
+i.e. dominated by others, see the position \textbf{rf} at Figure
+\ref{fig:soybean-avg}. We hypothesized that keeping the same number of
+component classifiers as bagging or boosting may be too restrictive for this
+kind of ensemble which due to randomization of trees may need more
+components, \citep[cf.][]{breiman_2001}.  Following it, we stepwise
+increased this number, observing that for 50 trees the classification
+results of \emph{random forests} became comparable to other approaches --
+compare Figures \ref{fig:soybean-avg}  and \ref{fig:soybean-new-avg}. Thus,
+the rest of experiments was run with this parameter.
+
+
+\begin{figure}[!ht]
+    \begin{center}
+       \includegraphics[scale=0.4]{fig/breast-new_avg.pdf}
+    \end{center}
+    \caption{Comparing different active learners on \textit{Breast} data.}
+    \label{fig:breast-avg}
+\end{figure}
+
+Due to the page limits we could present only the most representative learning curves -- see e.g. Fig. \ref{fig:soybean-new-avg} or \ref{fig:breast-avg}. One can notice that the highest
+classification accuracy is achieved by using quite a small number of
+additional training examples. For other data sets we obtained shapes of
+plots being similar to one of them although they "stabilized" at different
+levels of accuracy, e.g. plot for \emph{Wine} is quite similar to
+\emph{Soybean}. Nearly for all data set, active decorate approach led to the
+fastest increase of the accuracy, i.e. its plot was the most bent to the left
+upper corner of the figure. Other approaches generally worked comparably - depending on the data set one of them was slightly more effective. For data sets like \emph{Soybean, Wine, Ionosphere} the differences between all compared approaches was the most visible -- see
+Fig. \ref{fig:soybean-new-avg}, while for other data sets their plots were closer each other.
+
+
+
+\begin{figure}[!ht]
+    \begin{center}
+%        \includegraphics[scale=0.37]{fig/soybean-new-knn_avg.eps}
+        \includegraphics[scale=0.37]{fig/soybean-new-knn_avg.pdf}
+    \end{center}
+    \caption{The effect of creating the starting training set in active learners with edited k-nn on \textit{Soybean}.}
+    \label{fig:soybean-knn-avg}
+\end{figure}
+
+
+In the next experiments we studied the use of new technique
+for selecting the starting training set. Referring to literature on
+active learning and co-training we decided to select 2\% of the data to the
+starting set for all approaches. In Fig.
+\ref{fig:soybean-knn-avg} we show results for \emph{Soybean} data. One can
+notice that using this $k$-nn techniques all compared approaches needed  less
+additional examples to be labeled to achieve the level of the high accuracy
+comparing to starting from the random selected examples. Such an observation
+also held for other data sets. To study more precisely the change of the number of
+examples selected by active learning to be labeled we performed an
+additional analysis. As a "target accuracy" we assumed the classification
+accuracy which was obtained by a learning approach in the stable part of the
+plot (as we checked, it was comparable to the accuracy obtained by the passive
+version of the multiple classifier for the high number of training
+examples). Then, analysing consecutive iterations of active learning we
+determined the minimum number of learning examples required by the approach
+to achieve this target accuracy. To extend comparison we also evaluated the
+passive version of approaches (e.g. bagging used without active learning
+phase) -- which were evaluated in simple on line processing of randomly ordered
+examples until they achieved an accuracy similar to the target one (i.e. with the threshold 1\%). The numbers of necessary examples are summarized
+in Table \ref{table:results}. In parentheses, we put information on the
+ratio of using the total data sets. All approaches are described as: first
+line denotes a passive version of the committee, the second line corresponds to its active version
+with a random choice of the starting set and the third is its modification
+with $k$-nn choice. Bold fonts indicate the best results, i.e. the highest
+reduction of queries - number of examples to be labeled. For random forests we presented results for 50 trees (denoted as RF with 50) and  additionally some results for using 15 trees (the last two lines in the table).
+%The proposed
+%modification led to the best reduction nearly for all data and committees.
+
+
+\begin{table}[ht]
+\caption{Reduction of the number of training examples to achieve the target
+accuracy - for Random forests results are presented for 50 trees and  for 15.}
+\renewcommand{\arraystretch}{1.4}
+\label{table:results}
+\footnotesize
+\begin{center}
+\begin{tabular}{|c|cccccc|}
+\hline
+\ Approach & wine & ionosphere & breast & soybean & diabetes & credit-g\\ [0.5ex]
+\hline
+Decorate & 37 (0.23) & 56 (0.18) & 35 (0.06) & 347 (0.57) & 172 (0.25) & 174 (0.19)\\
+AD & 27 (0.17) & 36 (0.11) & 37 (0.06) & 125 (0.20) & 410 (0.59) & 267 (0.30)\\
+AD k-nn & \textbf{22 (0.14)} & \textbf{32 (0.10)} & \textbf{30 (0.05)} & \textbf{105 (0.17)} & \textbf{48 (0.07)} & \textbf{161 (0.18)}\\
+\hline
+Bagging & 122 (0.76) & 206 (0.65) & 388 (0.63) & 373 (0.61) & 126 (0.18) & 297 (0.33)\\
+QBag & 52 (0.33) & \textbf{46 (0.15)} & 53 (0.09) & 144 (0.23) & \textbf{98 (0.14)} & \textbf{215 (0.24)}\\
+QBag k-nn & \textbf{40 (0.25)} & 48 (0.15) & \textbf{53 (0.09)} & \textbf{126 (0.21)} & 118 (0.17) & 293 (0.33)\\
+\hline
+Boosting & 111 (0.69) & 162 (0.51) & 60 (0.10) & 269 (0.44) & 201 (0.29) & 251 (0.28)\\
+QBoost & \textbf{75 (0.47)} & \textbf{102 (0.32)} & 62 (0.10) & 149 (0.24) & 199 (0.29) & 203 (0.23)\\
+Qboost k-nn & 103 (0.64) & 130 (0.41) & \textbf{54 (0.09)} & \textbf{145 (0.24)} & \textbf{38 (0.05)} & \textbf{170 (0.19)}\\
+\hline
+RF (50) & 158 (0.99) & 167 (0.53) & 105 (0.17) & 176 (0.25) & 418 (0.68) & 479 (0.53)\\
+ARF (50) & \textbf{56 (0.35)} & 71 (0.23) & 56 (0.09) & 76 (0.11) & \textbf{151 (0.25)} & 272 (0.30)\\
+ARF k-nn & 128 (0.80) & \textbf{67 (0.21)} & \textbf{48 (0.08)} & \textbf{76 (0.11)} & 152 (0.25) & \textbf{205 (0.22)}\\
+\hline
+RF (15) & 115 (0.72) & 251 (0.80) & 105 (0.17) & 411 (0.67) & 176 (0.25) & 377 (0.42)\\
+ARF (15)& \textbf{58 (0.36)} & 118 (0.37) & 65 (0.11) & 212 (0.35) & 139 (0.20) & \textbf{170 (0.19)}\\
+ARF k-nn & 63 (0.39) & \textbf{86 (0.27)} & \textbf{48 (0.08)} & \textbf{190 (0.31)} & \textbf{111 (0.16)} & 250 (0.28)\\
+[1ex]
+\hline
+\end{tabular}
+\end{center}
+\end{table}
+
+Moreover, we studied the influence of changing the number of examples
+selected in each iteration of active learning. Let us remind that up to now we always pose a
+query about single, the most valuable example in each iteration. Generally
+speaking extending this number for more than a few examples did not influence
+the highest accuracy obtained by all active learning approaches, however for
+data sets with larger number of classes, e.g. \emph{Soybean}, it caused
+slowing down the increase of the learning curve -- which means that more
+learning examples were necessary to obtain "stabilization point" at the
+curve (around twice more). On the other hand it also resulted in decreasing
+time cost of learning.
+
+
+\begin{figure}[!ht]
+    \begin{center}
+        \includegraphics[scale=0.35]{fig/soybean_dis.pdf}
+    \end{center}
+    \caption{Comparing measures of disagreement in active decorate on \textit{Soybean}.}
+    \label{fig:soybean-dis}
+\end{figure}
+
+\begin{figure}[!ht]
+    \begin{center}
+        \includegraphics[scale=0.35]{fig/breast_dis.pdf}
+    \end{center}
+    \caption{Comparing measures of disagreement in active decorate on \textit{Breast}.}
+    \label{fig:breast-dis}
+\end{figure}
+
+
+In the final part of the experiments we compared the use of four different
+measures of disagreement \emph{margin},
+\emph{JS-divergence}, \emph{median} and \emph{euclidean}  to be used for selecting examples to be labeled. We evaluated them
+for all active learning approaches with $k$-nn selection of the starting set.
+Results for many data sets did not show significant differences between
+using these measures (see. e.g. Fig \ref{fig:breast-dis}). More visible differences were noticed for all data sets with non-binary decision class. To illustrate it we show in Fig.
+\ref{fig:soybean-dis} again results for \emph{Soybean} data. One can notice
+that simpler measures as margin or median were superior to JS-divergence and
+euclidean distance of probability distributions.
+
+
+The last issue concerns the computation costs of each QBC approach.
+In Table \ref{table:time} we summarize time of achieving by each approach the "stabilization" point of classification accuracy at the learning curve.
+
+
+\begin{table}[ht]
+\caption{Committee training time (in seconds) of different active learners.}
+\renewcommand{\arraystretch}{1.4}
+\label{table:time}
+\begin{center}
+\begin{tabular}{|c|cccccc|}
+    \hline
+    \ Approach & wine & ionosphere & breast & soybean & diabetes & credit-g\\ [0.5ex]
+    \hline
+    Active Decorate & 0.42 & 1.8 & 0.7 & 4.0 & 3.1 & 3.08\\
+    Query by Bagging & 0.04 & 0.2 & 0.01 & 0.28 & 0.4 & 0.38\\
+    Query by Boosting & 0.07 & 0.36 & 0.11 & 0.63 & 0.14 & 0.44\\
+    Random Forests & 0.02 & 0.1 & 0.01 & 0.33 & 0.19 & 0.33\\
+    \hline
+\end{tabular}
+\end{center}
+\end{table}
+
+
+\section{Conclusions}
+
+Results of our experiments with  different approaches to construct active learning systems based on query by committee clearly confirmed that by using a
+relatively small number of examples -- well selected for labeling -- it is
+possible to generate a final classifier characterized by an accuracy
+comparable to passive approaches using much larger set of examples. This
+conclusion is consistent with earlier empirical studies on related
+QBC active learning \citep[cf.][]{Abe,Melvile}. One can notice  in Table \ref{table:results}
+that the reduction of the number of examples necessary for efficient active
+learning  varies between 5\% and 18\% of the total size of training
+data depending on the data set and particular approach.
+
+However, we observed that the choice of component techniques used in our
+framework influenced the results to a different extend. Among four compared
+methods applied to generate a committee the best reduction of the number of
+examples was mainly obtained by \emph{active decorate}. Looking at the
+second line of the results for each approach presented in Table
+\ref{table:results}  one can notice that \emph{active decorate} was the
+winner for the following data sets \emph{wine, ionosphere, breast cancer}
+and \emph{soybean}. However, it was the worst in case of \emph{credit
+german} and \emph{diabetes}, where other query approaches were better.  We
+also noticed that the performance of the new considered approach
+\emph{random forests} clearly depends on the number of component trees.
+Setting it to the similar number as in bagging or boosting made it the worst
+accurate approach. Increasing the number of trees to 50 resulted in quite
+comparable performance as other studied QBC approaches.
+
+%Moreover one could observe at figures
+%\ref{fig:soybean-avg},\ref{fig:breast-avg}   that at
+%the first iterations of active learning all approaches are  usually comparable or the order changes with the succeeding iterations.
+
+On the other hand, our experiments also showed that the good accuracy
+performance of \emph{active decorate} was obtained at the cost of the
+highest computation time. Although one could expect it knowing the nature of
+additional internal steps of generating artificial examples inside this
+approach, the range of the difference to \emph{query by bagging} or
+\emph{boosting} was quite large. \emph{Query by random forests} was
+definitely the fastest approach -- which is a new observation considering
+previous research on QBC. To sum up, depending on the problem at hand and
+preferences (query reduction vs time costs), one should carefully choose the
+most appropriate approach to generate the ensemble.
+
+The other new observation from our experiments is that the way how the starting
+set of examples is provided to the active framework has a significant
+influence on the performance of all compared approach (see figures
+\ref{fig:soybean-avg} -  \ref{fig:soybean-knn-avg}  or Table \ref{table:results}). The introduced edited $k$-nn method nearly always reduced the number of
+necessary examples to labeling. In particular, it helped the most to
+\emph{active decorate} which achieved the best results for all data sets. We
+can hypothesize that such a choice of more certainly classified examples may
+influence the quality of the first constructed ensembles in their decisions
+and for \emph{active decorate} it may give additional chance to generate better
+artificial examples.
+
+%In the next experiment, we also noticed that increasing the number of
+%queries in single iterations (i.e. selecting more examples to queries) did
+%not improve accuracy (even make the changes of accuracy worse) but reduced
+%the computational time.
+
+Finally, the choice of the disagreement measure for predictions of committee was
+not significant for the majority of our data sets. Only for two multi-class
+data sets \emph{soybean} and \emph{wine} simpler measures like
+\emph{margins} or \emph{median distance} were more useful than more
+complicated ones, as \emph{JS-divergence} (see Figure \ref{fig:soybean-dis}). Looking into some
+literature discussions \citep{Melvile} we found remarks that measures based
+on idea of \emph{margins} are more directly oriented to identify decision
+boundaries - which may be more suitable for active learning than the
+reduction of uncertainty with predicted class probability distribution,
+which is somehow offered by the more complicated form of divergence.
+
+In future research we want to follow the observation about the influence of
+constructing the starting training sets for QBC active learning and we are
+going to study the use of an unsupervised approach to select unlabeled
+examples to the starting set, e.g. by means of adaptation of density-based
+clustering algorithms.
+
+
+
+\bibliographystyle{iisproc}
+\bibliography{iis-stefpach2}
+
+
+\end{document}
