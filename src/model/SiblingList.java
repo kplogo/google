@@ -3,9 +3,6 @@ package model;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Created by Krzysztof on 30.11.2015.
- */
 public class SiblingList extends ArrayList<Sibling> {
 	public int sum(){
 		int count = 0;
@@ -14,4 +11,5 @@ public class SiblingList extends ArrayList<Sibling> {
 		}
 		return count;
 	}
+
 }

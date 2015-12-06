@@ -1,140 +1,96 @@
 package model;
 
-import model.document.Method;
-import model.document.Values;
+import service.SiblingUtil;
+import service.Stemmer;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Stream;
 
 public class Document {
-	private String title;
-	private String content;
-	private Map<Term, Values> searchText = new HashMap<>();
+    private final String filename;
+    private final String title;
+    private final String content;
+    private final List<String> declaredKeywords;
+    private final Map<SiblingKey, SiblingList> siblings = new HashMap<>();
+    private Map<String, Map<Keyword, Integer>> parsedSiblings = new HashMap<>();
 
-	public Document(String title, String content) {
-		this(title, content, true);
-	}
+    public Document(String filename, String title, String content, String[] declaredKeywords) {
+        this.filename = filename;
+        this.title = title;
+        this.content = content;
+        this.declaredKeywords = new ArrayList<>();
+        if (declaredKeywords != null) {
+            for (String declaredKeyword : declaredKeywords) {
+                this.declaredKeywords.add(declaredKeyword.trim());
+            }
+        }
+        process(title);
+        process(content);
+    }
 
-	public Document(String title, String content, boolean addToDatabase) {
-		this.title = title;
-		this.content = content;
-		process(title, addToDatabase);
-		process(content, addToDatabase);
-		calculateTF();
-	}
-
-	private void process(String title, boolean addToDatabase) {
-		for (Term term : TermUtil.normalize(title, false)) {
-			Values values = searchText.get(term);
-			if (values == null) {
-				values = new Values(term);
-				searchText.put(term, values);
-				if (addToDatabase) {
-					term.incDocumentCount();
-				}
-			}
-			values.incCount();
-		}
-	}
-
-	public double length(Method method) {
-		double sum = 0;
-		for (Values values : searchText.values()) {
-			sum += values.get(method) * values.get(method);
-		}
-		return Math.sqrt(sum);
-	}
-
-	public double similarity(Document query, Method method) {
-		double sum = 0;
-		for (Map.Entry<Term, Values> termEntry : searchText.entrySet()) {
-			sum += getValue(query.searchText.get(termEntry.getKey()), termEntry.getValue(), method);
-		}
-		double length = query.length(method) * length(method);
-		if (length == 0) {
-			return -1;
-		}
-		return sum / length;
-	}
-
-	private double getValue(Values queryValues, Values values, Method method) {
-		if (values == null || queryValues == null) {
-			return 0;
-		}
-		return values.get(method) * queryValues.getRelevance() * queryValues.get(method, 1);
-	}
-
-	public double getTermRelevance(Term term) {
-		Values values = searchText.get(term);
-		if (values == null) {
-			return 0;
-		}
-		return values.getRelevance();
-	}
-
-	public void setTermRelevance(Term term, double relevance) {
-		if (relevance < 0) {
-			relevance = 0;
-		}
-		Values values = searchText.get(term);
-		if (relevance == 0) {
-			if (values != null) {
-				searchText.remove(term);
-			}
-			return;
-		}
-		if (values == null) {
-			values = new Values(term);
-			searchText.put(term, values);
-		}
-		values.setRelevance(relevance);
-	}
-
-	public String getTitle() {
-		return title;
-	}
-
-	@Override
-	public String toString() {
-		return "Tytuł: " + title;
-	}
-
-	private void calculateTF() {
-		double max = 0;
-		//calculate max
-		for (Values values : searchText.values()) {
-			if (values.get(Method.COUNT) > max) {
-				max = values.get(Method.COUNT);
-			}
-		}
-		//normalize terms
-		for (Values values : searchText.values()) {
-			values.normalize(max);
-		}
-	}
-
-	public double getTermCount(Term term) {
-		Values values = searchText.get(term);
-		if (values == null) {
-			return 0;
-		}
-		return values.get(Method.COUNT);
-
-	}
-
-	public String getQueryText() {
-		StringBuilder sb = new StringBuilder();
-		for (Map.Entry<Term, Values> entry : searchText.entrySet()) {
-			sb.append(entry.getKey().getValue())
-					.append(":")
-					.append(entry.getValue().getRelevance())
-					.append(" ");
-		}
-		return sb.toString();
-	}
+    private void process(String title) {
+        title = title.replaceAll("[^a-zA-Z0-9]", " ").replaceAll("[ ]+", " ").toLowerCase();
+        String[] split = title.split(" ");
+        Sibling sibling = null;
+        for (String word : split) {
+            String stemmedWord = Stemmer.stemWord(word);
+            if (!Objects.equals(stemmedWord, "")) {
+                Term term = Term.create(stemmedWord, word);
+                sibling = SiblingUtil.create(this, sibling, term);
+            }
+        }
+    }
 
 
-	public String getContent() {
-		return content;
-	}
+    public String getTitle() {
+        return title;
+    }
+
+    @Override
+    public String toString() {
+        return "Tytuł: " + title;
+    }
+
+
+    public String getContent() {
+        return content;
+    }
+
+    public List<String> getDeclaredKeywords() {
+        return declaredKeywords;
+    }
+
+    public SiblingList getSiblingList(Sibling prev, Term term) {
+        SiblingKey key = new SiblingKey(prev, term);
+        if (siblings.containsKey(key)) {
+            return siblings.get(key);
+        } else {
+            Sibling sibling = new Sibling(prev, term);
+            SiblingList list = new SiblingList();
+            list.add(sibling);
+            siblings.put(key, list);
+            return list;
+        }
+    }
+
+    public Map<SiblingKey, SiblingList> getSiblings() {
+        return siblings;
+    }
+
+    public String getFilename() {
+        return filename;
+    }
+
+    public Map<Keyword, Integer> getParsedSiblings(int wordCount) {
+        Map<Keyword, Integer> map = parsedSiblings.get(getParsedSiblingsKey(wordCount));
+        if (map == null) {
+            map = SiblingUtil.getSiblingsMulti(this, wordCount);
+            parsedSiblings.put(getParsedSiblingsKey(wordCount), map);
+        }
+        return map;
+    }
+
+    private String getParsedSiblingsKey(int wordCount) {
+        return "Parsed" + wordCount;
+    }
 }

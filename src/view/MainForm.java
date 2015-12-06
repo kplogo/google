@@ -2,235 +2,111 @@ package view;
 
 import model.DatabaseCollection;
 import model.Document;
-import model.Result;
-import model.Term;
-import model.document.Method;
+import model.Keyword;
 import service.DocumentParser;
+import service.SiblingUtil;
 
-import javax.swing.*;
-import javax.swing.event.ListDataListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.IntStream;
+import java.util.Map;
 
 public class MainForm {
-	private JPanel panel1;
-	private JTextField database;
-	private JButton loadDatabase;
-	private JTextField query;
-	private JList<Result> results;
-	private JButton search;
-	private JComboBox method;
-	private JButton oznacz;
-	private JButton newQuestion;
-	private JSpinner alfa;
-	private JSpinner beta;
-	private JSpinner gamma;
-	private JTextField queryHelp;
-	private JFileChooser fileChooser = new JFileChooser();
 
-	//information retrieval
+    private List<Keyword> processedKeywords = new ArrayList<>();
 
-	public static void main(String[] args) {
-		JFrame frame = new JFrame("MainForm");
-		frame.setContentPane(new MainForm().panel1);
-		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-		frame.pack();
-		frame.setVisible(true);
-	}
+    public static void main(String[] args) {
+        new MainForm();
+    }
 
-	public MainForm() {
-		alfa.setValue(1);
-		beta.setValue(1);
-		gamma.setValue(1);
-		loadDatabase.addActionListener(e -> openFile(database));
-		search.addActionListener(e -> search());
-		oznacz.addActionListener(e -> markAsImportant());
-		newQuestion.addActionListener(e -> repairQuestion());
-	}
+    public MainForm() {
+        String directory = "c:\\studia\\google\\resources\\data\\";
+//        String directory = "c:\\studia\\google\\resources\\data\\paper9\\JSPaw2.tex";
+        File file = new File(directory);
+        int processedFile = processFile(file);
+        DatabaseCollection.getDocumentList().forEach(this::printDocument);
+        printRelatedKeywords(DatabaseCollection.getDocumentList());
+        System.out.println("---------------------------------------");
+        System.out.println("Znaleziono slow kluczowych: " + processedKeywords.size());
+        System.out.println("Lista slow kluczowych: ");
+        processedKeywords.stream().forEach(item -> System.out.println(item.getRealName()));
+        System.out.println("---------------------------------------");
+        System.out.println("Przetworzono plikow: " + processedFile);
+    }
 
-	private void repairQuestion() {
-		ResultModel model = (ResultModel) results.getModel();
-		Document query1 = model.getQuery();
-		calculateRelevance(model.getResultList(), query1, (Integer) alfa.getValue(), (Integer) beta.getValue(), (Integer) gamma.getValue());
-		queryHelp.setText(query1.getQueryText());
-		Method method1 = Method.valueOf((String) MainForm.this.method.getSelectedItem());
-		showResults(method1, query1);
-	}
+    private void printRelatedKeywords(List<Document> documentList) {
+        for (Document document : documentList) {
+            for (int i = 1; i < 5; i++) {
+                int wordCount = i;
+                Map<Keyword, Integer> siblings = document.getParsedSiblings(wordCount);
+                SiblingUtil.reduceSiblings(siblings, 5)
+                        .forEach(entry -> processKeyword(documentList, entry.getKey(), wordCount));
+            }
+        }
+    }
 
-	private void markAsImportant() {
-		for (Result result : results.getSelectedValuesList()) {
-			result.setMarkedAsGood(!result.isMarkedAsGood());
-		}
-		results.repaint();
-	}
+    private void processKeyword(List<Document> documentList, Keyword keyword, int wordCount) {
+        if (processedKeywords.contains(keyword)) {
+            return;
+        } else {
+            processedKeywords.add(keyword);
+        }
+        System.out.println("Slowo kluczowe:");
+        System.out.println(keyword.getRealName());
+        System.out.println(keyword.getTermName());
+        System.out.println("-----------------------------------------");
+        for (Document document : documentList) {
+            Map<Keyword, Integer> parsedSiblings = document.getParsedSiblings(wordCount);
+            Integer integer = parsedSiblings.get(keyword);
+            if (integer == null) {
+                integer = 0;
+            }
+            System.out.println(integer + " : " + document.getTitle());
+        }
+        System.out.println("-----------------------------------------");
 
-	private void search() {
-		DatabaseCollection.clear();
-		new DocumentParser(database.getText()).parse();
-		logTerms();
-		logSiblings();
-		Method method1 = Method.valueOf((String) MainForm.this.method.getSelectedItem());
-		Document query1 = new Document(MainForm.this.query.getText(), "", false);
-		showResults(method1, query1);
-	}
-
-	private void openFile(JTextField keywords) {
-
-		fileChooser.setCurrentDirectory(new File(keywords.getText()));
-		int returnVal = fileChooser.showOpenDialog(panel1);
-		if (returnVal == JFileChooser.APPROVE_OPTION) {
-			File file = fileChooser.getSelectedFile();
-			keywords.setText(file.getPath());
-		}
-	}
-
-	private void logTerms() {
-		DatabaseCollection.getTermMap().entrySet().stream()
-				.filter(termEntry -> !Objects.equals(termEntry.getValue().getSiblingsInfo(), ""))
-				.forEach(termEntry -> System.out.println(termEntry.getValue().getSiblingsInfo()));
-	}
+    }
 
 
-	private void logSiblings() {
-		DatabaseCollection.getSiblings().values().stream()
-				.sorted((o1, o2) -> o2.sum() - o1.sum())
-				.filter(siblings -> siblings.sum()>=getMaxCount()-getMaxCount()/10.0)
-				.forEach(termEntry -> System.out.println(termEntry.toString()));
-	}
-
-	private int getMaxCount() {
-		return  DatabaseCollection.getSiblings().values().stream()
-				.sorted((o1, o2) -> o2.sum() - o1.sum())
-				.max((s1,s2)-> s1.sum()-s2.sum()).get().sum();
-	}
-
-	private void showResults(Method method1, Document query1) {
-		List<Result> querySimilarity = getQuerySimilarity(method1, query1);
-		results.setModel(new ResultModel(querySimilarity, query1));
-		results.addMouseListener(new ListClickListener(results));
-	}
-
-	private void calculateRelevance(List<Result> resultList, Document query, double alfa, double beta, double gama) {
-		List<Document> goodDocuments = new ArrayList<>();
-		List<Document> badDocuments = new ArrayList<>();
-		for (Result result : resultList) {
-			if (result.isMarkedAsGood()) {
-				goodDocuments.add(result.getDocument());
-			} else {
-				badDocuments.add(result.getDocument());
-
-			}
-		}
-		for (Term term : DatabaseCollection.getTermMap().values()) {
-			double relevance = alfa * query.getTermRelevance(term) + (avg(term, goodDocuments)) * beta - avg(term, badDocuments) * gama;
-			query.setTermRelevance(term, relevance);
-		}
-	}
-
-	private double avg(Term term, List<Document> documents) {
-		double count = 0;
-		if (documents == null || documents.isEmpty()) {
-			return 0;
-		}
-		for (Document document : documents) {
-			count += document.getTermCount(term);
-		}
-		return count / documents.size();
-	}
-
-	private List<Result> getQuerySimilarity(Method method, Document query) {
-		List<Result> resultList = new ArrayList<>();
-		List<Result> list = new ArrayList<>();
-		for (Document document : DatabaseCollection.getDocumentList()) {
-			double similarity = document.similarity(query, method);
-			if (similarity != -1) {
-				list.add(new Result(document, similarity));
-			}
-		}
-		list.stream().sorted().limit(5).forEach(resultList::add);
-		return resultList;
-	}
+    private int processFile(File file) {
+        if (file.isDirectory()) {
+            File[] fileList = file.listFiles();
+            if (fileList == null) {
+                return 0;
+            }
+            int count = 0;
+            for (File file1 : fileList) {
+                count += processFile(file1);
+            }
+            return count;
+        }
+        if (file.getName().endsWith("tex") || file.getName().endsWith("txt")) {
+            searchFile(file.getAbsolutePath());
+            return 1;
+        }
+        return 0;
+    }
 
 
-	private class ListClickListener implements MouseListener {
-		private JList<Result> results;
+    private void searchFile(String filename) {
+        new DocumentParser(filename).parse();
+    }
 
-		public ListClickListener(JList<Result> results) {
+    private void printDocument(Document document) {
+        System.out.println("---------------------------DOCUMENT START----------------------------");
+        System.out.println("Title: " + document.getTitle());
+        System.out.println("Plik: " + document.getFilename());
+        for (int i = 1; i < 5; i++) {
+            System.out.println("Slowa kluczowe " + i + " wyrazowe:");
+            System.out.println("----------------------------------");
+            SiblingUtil.logSiblingsMulti(document, i, 100);
+            System.out.println();
+            System.out.println();
+        }
+        System.out.println("Slowa kluczowe podane w dokumencie:");
+        System.out.println("----------------------------------");
+        SiblingUtil.findAndLogRealSiblings(document);
+        System.out.println("---------------------------DOCUMENT END----------------------------");
+    }
 
-			this.results = results;
-		}
-
-
-		@Override
-		public void mouseClicked(MouseEvent e) {
-			if (e.getClickCount() > 1) {
-				Result selectedValue = results.getSelectedValue();
-				selectedValue.setMarkedAsGood(!selectedValue.isMarkedAsGood());
-				results.repaint();
-			}
-		}
-
-		@Override
-		public void mousePressed(MouseEvent e) {
-
-		}
-
-		@Override
-		public void mouseReleased(MouseEvent e) {
-
-		}
-
-		@Override
-		public void mouseEntered(MouseEvent e) {
-
-		}
-
-		@Override
-		public void mouseExited(MouseEvent e) {
-
-		}
-	}
-
-	private class ResultModel implements ListModel<Result> {
-		private List<Result> resultList;
-		private Document query;
-
-		private ResultModel(List<Result> resultList, Document query) {
-			this.resultList = resultList;
-			this.query = query;
-		}
-
-		public List<Result> getResultList() {
-			return resultList;
-		}
-
-		@Override
-		public int getSize() {
-			return resultList.size();
-		}
-
-		@Override
-		public Result getElementAt(int index) {
-			return resultList.get(index);
-		}
-
-		@Override
-		public void addListDataListener(ListDataListener l) {
-
-		}
-
-		@Override
-		public void removeListDataListener(ListDataListener l) {
-
-		}
-
-		public Document getQuery() {
-			return query;
-		}
-	}
 }
