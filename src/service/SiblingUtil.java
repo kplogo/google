@@ -57,11 +57,11 @@ public class SiblingUtil {
                 .limit(limit);
     }
 
-    public static void findAndLogRealSiblings(Document document) {
+    public static void findAndLogRealSiblings(Document document, boolean shouldBePrinted) {
         List<String> declaredKeywords = document.getDeclaredKeywords();
         for (String declaredKeyword : declaredKeywords) {
             String siblingForKeyword = findSiblingForKeyword(document, declaredKeyword);
-            if (siblingForKeyword != null) {
+            if (siblingForKeyword != null && shouldBePrinted) {
                 System.out.println(siblingForKeyword);
             }
         }
@@ -114,21 +114,13 @@ public class SiblingUtil {
     }
 
     private static String findSiblingForKeyword(Document document, String keyword) {
-        String[] words = keyword.split(" ");
-        StringBuilder sb = new StringBuilder();
-        for (String part : words) {
-            String stemmedWord = Stemmer.stemWord(part);
-            if (!Objects.equals(stemmedWord, "")) {
-                sb.append(stemmedWord)
-                        .append(" ");
-            }
-        }
-        String key = sb.toString().trim().toLowerCase();
-        Map<Keyword, Integer> siblingsMulti = getSiblingsMulti(document, key.split(" ").length);
-        Integer count = siblingsMulti.get(new Keyword(key,""));
+        Keyword keyword1 = Keyword.createKeywordFromString(keyword);
+        Map<Keyword, Integer> siblingsMulti = getSiblingsMulti(document, keyword1.getWordCount());
+        Integer count = siblingsMulti.get(keyword1);
         if (count == null) {
             count = 0;
         }
-        return keyword + ": " + count;
+        return keyword1.getRealName() + ": " + count;
     }
+
 }

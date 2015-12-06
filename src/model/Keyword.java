@@ -1,5 +1,9 @@
 package model;
 
+import service.Stemmer;
+
+import java.util.Objects;
+
 public class Keyword {
     private String termName;
     private String realName;
@@ -7,6 +11,20 @@ public class Keyword {
     public Keyword(String termName, String realName) {
         this.termName = termName;
         this.realName = realName;
+    }
+
+    public static Keyword createKeywordFromString(String keyword) {
+        String[] words = keyword.split(" ");
+        StringBuilder sb = new StringBuilder();
+        for (String part : words) {
+            String stemmedWord = Stemmer.stemWord(part);
+            if (!Objects.equals(stemmedWord, "")) {
+                sb.append(stemmedWord)
+                        .append(" ");
+            }
+        }
+        String key = sb.toString().trim().toLowerCase();
+        return new Keyword(key, keyword);
     }
 
     public String getTermName() {
@@ -36,6 +54,10 @@ public class Keyword {
 
     @Override
     public String toString() {
-        return  termName ;
+        return termName;
+    }
+
+    public int getWordCount() {
+        return termName.split(" ").length;
     }
 }

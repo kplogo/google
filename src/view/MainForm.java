@@ -13,7 +13,14 @@ import java.util.Map;
 
 public class MainForm {
 
+    public static final int MAX_LENGTH_OF_KEYWORD = 5;
+    public static final boolean PRINT_ALL_KEYWORDS_LIST = true;
+    public static final boolean PRINT_RELATED_KEYWORDS = true;
+    private static final boolean PRINT_RELATED_KEYWORDS_DECLARED = true;
+    private static final boolean PRINT_RELATED_KEYWORDS_PARSED = true;
+    private static final boolean PRINT_DOCUMENT_KEYWORDS = true;
     private List<Keyword> processedKeywords = new ArrayList<>();
+    private static final boolean PRINT_DOCUMENT_DECLARED_KEYWORDS = true;
 
     public static void main(String[] args) {
         new MainForm();
@@ -26,22 +33,50 @@ public class MainForm {
         int processedFile = processFile(file);
         DatabaseCollection.getDocumentList().forEach(this::printDocument);
         printRelatedKeywords(DatabaseCollection.getDocumentList());
-        System.out.println("---------------------------------------");
-        System.out.println("Znaleziono slow kluczowych: " + processedKeywords.size());
-        System.out.println("Lista slow kluczowych: ");
-        processedKeywords.stream().forEach(item -> System.out.println(item.getRealName()));
+        printAllKeywordList();
         System.out.println("---------------------------------------");
         System.out.println("Przetworzono plikow: " + processedFile);
     }
 
+    private void printAllKeywordList() {
+        if (!PRINT_ALL_KEYWORDS_LIST) {
+            return;
+        }
+        System.out.println("---------------------------------------");
+        System.out.println("Znaleziono slow kluczowych: " + processedKeywords.size());
+        System.out.println("Lista slow kluczowych: ");
+        processedKeywords.stream().forEach(item -> System.out.println(item.getRealName()));
+    }
+
     private void printRelatedKeywords(List<Document> documentList) {
+        if (!PRINT_RELATED_KEYWORDS) {
+            return;
+        }
         for (Document document : documentList) {
-            for (int i = 1; i < 5; i++) {
-                int wordCount = i;
-                Map<Keyword, Integer> siblings = document.getParsedSiblings(wordCount);
-                SiblingUtil.reduceSiblings(siblings, 5)
-                        .forEach(entry -> processKeyword(documentList, entry.getKey(), wordCount));
-            }
+            printRelatedKeywordsParsed(documentList, document);
+            printRelatedKeywordDeclared(documentList, document);
+        }
+    }
+
+    private void printRelatedKeywordDeclared(List<Document> documentList, Document document) {
+        if (!PRINT_RELATED_KEYWORDS_DECLARED) {
+            return;
+        }
+        for (String keyword : document.getDeclaredKeywords()) {
+            Keyword preparedKeyword = Keyword.createKeywordFromString(keyword);
+            processKeyword(documentList, preparedKeyword, preparedKeyword.getWordCount());
+        }
+    }
+
+    private void printRelatedKeywordsParsed(List<Document> documentList, Document document) {
+        if (!PRINT_RELATED_KEYWORDS_PARSED) {
+            return;
+        }
+        for (int i = 1; i < MAX_LENGTH_OF_KEYWORD; i++) {
+            int wordCount = i;
+            Map<Keyword, Integer> siblings = document.getParsedSiblings(wordCount);
+            SiblingUtil.reduceSiblings(siblings, 5)
+                    .forEach(entry -> processKeyword(documentList, entry.getKey(), wordCount));
         }
     }
 
@@ -96,17 +131,24 @@ public class MainForm {
         System.out.println("---------------------------DOCUMENT START----------------------------");
         System.out.println("Title: " + document.getTitle());
         System.out.println("Plik: " + document.getFilename());
-        for (int i = 1; i < 5; i++) {
+        printDocumentKeywords(document);
+        System.out.println("Slowa kluczowe podane w dokumencie:");
+        System.out.println("----------------------------------");
+        SiblingUtil.findAndLogRealSiblings(document, PRINT_DOCUMENT_DECLARED_KEYWORDS);
+        System.out.println("---------------------------DOCUMENT END----------------------------");
+    }
+
+    private void printDocumentKeywords(Document document) {
+        if (!PRINT_DOCUMENT_KEYWORDS) {
+            return;
+        }
+        for (int i = 1; i < MAX_LENGTH_OF_KEYWORD; i++) {
             System.out.println("Slowa kluczowe " + i + " wyrazowe:");
             System.out.println("----------------------------------");
             SiblingUtil.logSiblingsMulti(document, i, 100);
             System.out.println();
             System.out.println();
         }
-        System.out.println("Slowa kluczowe podane w dokumencie:");
-        System.out.println("----------------------------------");
-        SiblingUtil.findAndLogRealSiblings(document);
-        System.out.println("---------------------------DOCUMENT END----------------------------");
     }
 
 }
