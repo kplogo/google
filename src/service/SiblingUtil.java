@@ -57,11 +57,11 @@ public class SiblingUtil {
                 .limit(limit);
     }
 
-    public static void findAndLogRealSiblings(Document document, boolean shouldBePrinted) {
+    public static void findAndLogRealSiblings(Document document) {
         List<String> declaredKeywords = document.getDeclaredKeywords();
         for (String declaredKeyword : declaredKeywords) {
             String siblingForKeyword = findSiblingForKeyword(document, declaredKeyword);
-            if (siblingForKeyword != null && shouldBePrinted) {
+            if (siblingForKeyword != null) {
                 System.out.println(siblingForKeyword);
             }
         }

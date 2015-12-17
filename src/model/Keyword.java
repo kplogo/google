@@ -4,7 +4,7 @@ import service.Stemmer;
 
 import java.util.Objects;
 
-public class Keyword {
+public class Keyword implements Comparable<Keyword> {
     private String termName;
     private String realName;
 
@@ -59,5 +59,13 @@ public class Keyword {
 
     public int getWordCount() {
         return termName.split(" ").length;
+    }
+
+    @Override
+    public int compareTo(Keyword o) {
+        if (o == null) {
+            return 1;
+        }
+        return this.getRealName().compareTo(o.getRealName());
     }
 }

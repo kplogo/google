@@ -60,7 +60,7 @@ public class DocumentParser {
                 content.append(line).append(SPACE);
             }
             String[] declaredKeywords = searchKeywords(wholeText.toString());
-            documentList.add(new Document(filename,title, content.toString(), declaredKeywords));
+            documentList.add(new Document(filename,removeUnnecessaryChars(title), content.toString(), declaredKeywords));
 
         } catch (FileNotFoundException e) {
             System.out.println("No database available.");
@@ -91,7 +91,12 @@ public class DocumentParser {
     }
 
     private String removeUnnecessaryChars(String line) {
+        if(line.contains("\\hspace")){
+            System.out.println();
+        }
+        line = line.replaceAll("\\\\hspace\\*\\{[^\\}]*\\}","");
         line = LEX_FORMAT.matcher(line).replaceAll("");
+
         return line;
     }
 

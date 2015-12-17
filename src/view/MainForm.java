@@ -13,14 +13,13 @@ import java.util.Map;
 
 public class MainForm {
 
-    public static final int MAX_LENGTH_OF_KEYWORD = 5;
+    public static final int MAX_LENGTH_OF_KEYWORD = 4;
     public static final boolean PRINT_ALL_KEYWORDS_LIST = true;
-    public static final boolean PRINT_RELATED_KEYWORDS = true;
-    private static final boolean PRINT_RELATED_KEYWORDS_DECLARED = true;
-    private static final boolean PRINT_RELATED_KEYWORDS_PARSED = true;
+    private static final boolean PRINT_RELATED_KEYWORDS_DECLARED = false;
+    private static final boolean PRINT_RELATED_KEYWORDS_PARSED = false;
     private static final boolean PRINT_DOCUMENT_KEYWORDS = true;
     private List<Keyword> processedKeywords = new ArrayList<>();
-    private static final boolean PRINT_DOCUMENT_DECLARED_KEYWORDS = true;
+    private static final boolean PRINT_DOCUMENT_DECLARED_KEYWORDS = false;
 
     public static void main(String[] args) {
         new MainForm();
@@ -28,7 +27,7 @@ public class MainForm {
 
     public MainForm() {
         String directory = "c:\\studia\\google\\resources\\data\\";
-//        String directory = "c:\\studia\\google\\resources\\data\\paper9\\JSPaw2.tex";
+//        directory = "c:\\studia\\google\\resources\\data\\paper9\\JSPaw2.tex";
         File file = new File(directory);
         int processedFile = processFile(file);
         DatabaseCollection.getDocumentList().forEach(this::printDocument);
@@ -45,13 +44,10 @@ public class MainForm {
         System.out.println("---------------------------------------");
         System.out.println("Znaleziono slow kluczowych: " + processedKeywords.size());
         System.out.println("Lista slow kluczowych: ");
-        processedKeywords.stream().forEach(item -> System.out.println(item.getRealName()));
+        processedKeywords.stream().sorted().forEach(item -> System.out.println(item.getRealName()));
     }
 
     private void printRelatedKeywords(List<Document> documentList) {
-        if (!PRINT_RELATED_KEYWORDS) {
-            return;
-        }
         for (Document document : documentList) {
             printRelatedKeywordsParsed(documentList, document);
             printRelatedKeywordDeclared(documentList, document);
@@ -59,36 +55,33 @@ public class MainForm {
     }
 
     private void printRelatedKeywordDeclared(List<Document> documentList, Document document) {
-        if (!PRINT_RELATED_KEYWORDS_DECLARED) {
-            return;
-        }
         for (String keyword : document.getDeclaredKeywords()) {
             Keyword preparedKeyword = Keyword.createKeywordFromString(keyword);
-            processKeyword(documentList, preparedKeyword, preparedKeyword.getWordCount());
+            processKeyword(documentList, preparedKeyword, preparedKeyword.getWordCount(),PRINT_RELATED_KEYWORDS_DECLARED);
         }
     }
 
     private void printRelatedKeywordsParsed(List<Document> documentList, Document document) {
-        if (!PRINT_RELATED_KEYWORDS_PARSED) {
-            return;
-        }
         for (int i = 1; i < MAX_LENGTH_OF_KEYWORD; i++) {
             int wordCount = i;
             Map<Keyword, Integer> siblings = document.getParsedSiblings(wordCount);
             SiblingUtil.reduceSiblings(siblings, 5)
-                    .forEach(entry -> processKeyword(documentList, entry.getKey(), wordCount));
+                    .forEach(entry -> processKeyword(documentList, entry.getKey(), wordCount,PRINT_RELATED_KEYWORDS_PARSED));
         }
     }
 
-    private void processKeyword(List<Document> documentList, Keyword keyword, int wordCount) {
+    private void processKeyword(List<Document> documentList, Keyword keyword, int wordCount, boolean print) {
         if (processedKeywords.contains(keyword)) {
             return;
         } else {
             processedKeywords.add(keyword);
         }
+        if (!print){
+            return;
+        }
         System.out.println("Slowo kluczowe:");
         System.out.println(keyword.getRealName());
-        System.out.println(keyword.getTermName());
+//        System.out.println(keyword.getTermName());
         System.out.println("-----------------------------------------");
         for (Document document : documentList) {
             Map<Keyword, Integer> parsedSiblings = document.getParsedSiblings(wordCount);
@@ -115,7 +108,7 @@ public class MainForm {
             }
             return count;
         }
-        if (file.getName().endsWith("tex") || file.getName().endsWith("txt")) {
+        if (file.getName().toLowerCase().endsWith("tex") || file.getName().toLowerCase().endsWith("txt")) {
             searchFile(file.getAbsolutePath());
             return 1;
         }
@@ -132,9 +125,11 @@ public class MainForm {
         System.out.println("Title: " + document.getTitle());
         System.out.println("Plik: " + document.getFilename());
         printDocumentKeywords(document);
-        System.out.println("Slowa kluczowe podane w dokumencie:");
-        System.out.println("----------------------------------");
-        SiblingUtil.findAndLogRealSiblings(document, PRINT_DOCUMENT_DECLARED_KEYWORDS);
+        if (PRINT_DOCUMENT_DECLARED_KEYWORDS) {
+            System.out.println("Slowa kluczowe podane w dokumencie:");
+            System.out.println("----------------------------------");
+            SiblingUtil.findAndLogRealSiblings(document);
+        }
         System.out.println("---------------------------DOCUMENT END----------------------------");
     }
 
