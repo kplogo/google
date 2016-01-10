@@ -7,6 +7,7 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -26,10 +27,12 @@ public class DocumentParser {
         try {
             BufferedReader br = new BufferedReader(new FileReader(filename));
             String title = "";
+            String author = "";
             Mode actualMode = new Mode(0, Mode.Type.NORMAL);
             StringBuilder content = new StringBuilder();
             StringBuilder wholeText = new StringBuilder();
             boolean titleMode = false;
+            boolean authorMode = false;
             while (br.ready()) {
                 String line = br.readLine().trim();
                 wholeText.append(line).append(" ");
@@ -56,11 +59,26 @@ public class DocumentParser {
                     }
                     continue;
                 }
+                if (line.startsWith("\\author{")) {
+                    line = line.replace("\\author{", "");
+                    authorMode = true;
+                }
+                if (authorMode) {
+                    int end = line.indexOf("}");
+                    int falseEnd = line.indexOf("\\}");
+                    if (end > 0 && end != falseEnd - 1) {
+                        author += line.substring(0, end);
+                        authorMode = false;
+                    } else {
+                        author += line + " ";
+                    }
+                    continue;
+                }
                 line = removeUnnecessaryChars(line);
                 content.append(line).append(SPACE);
             }
             String[] declaredKeywords = searchKeywords(wholeText.toString());
-            documentList.add(new Document(filename,removeUnnecessaryChars(title), content.toString(), declaredKeywords));
+            documentList.add(new Document(filename, prepareAuthors(author), removeUnnecessaryChars(title), content.toString(), declaredKeywords));
 
         } catch (FileNotFoundException e) {
             System.out.println("No database available.");
@@ -68,6 +86,25 @@ public class DocumentParser {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private List<String> prepareAuthors(String author) {
+        String[] authors = author.split("and|\\\\\\\\");
+        List<String> result = new ArrayList<>();
+        for (String singleAuthor : authors) {
+            String[] split = singleAuthor.split("[,\\{\\}]");
+            for (String s : split) {
+                s = removeUnnecessaryChars(s);
+                if (s.length() < 8) {
+                    continue;
+                }
+                if (s.contains("-")||s.contains("'")||s.contains(":")||s.matches(".*[0-9].*")) {
+                    continue;
+                }
+                result.add(s.trim());
+            }
+        }
+        return result;
     }
 
     private String[] searchKeywords(String text) {
@@ -91,10 +128,10 @@ public class DocumentParser {
     }
 
     private String removeUnnecessaryChars(String line) {
-        if(line.contains("\\hspace")){
+        if (line.contains("\\hspace")) {
             System.out.println();
         }
-        line = line.replaceAll("\\\\hspace\\*\\{[^\\}]*\\}","");
+        line = line.replaceAll("\\\\hspace\\*\\{[^\\}]*\\}", "");
         line = LEX_FORMAT.matcher(line).replaceAll("");
 
         return line;
@@ -102,8 +139,8 @@ public class DocumentParser {
 
 
     private Mode shouldBeIgnore(String line, Mode actualMode) {
-        String ignored[] = {"%", "\\begin{table}", "\\begin{algo}", "\\begin{", "\\address{", "\\end{", "\\ead{", "\\documentclass{", "\\journal{", "\\author{", "\\bibitem{"};
-        String closeTag[] = {"", "\\end{table}", "\\end{algo}", "}", "}", "}", "}", "}", "}", "}","\r\n"};
+        String ignored[] = {"%", "\\begin{table}", "\\begin{algo}", "\\begin{", "\\address{", "\\end{", "\\ead{", "\\documentclass{", "\\journal{", "\\bibitem{"};
+        String closeTag[] = {"", "\\end{table}", "\\end{algo}", "}", "}", "}", "}", "}", "}", "\r\n"};
         for (int i = 0; i < ignored.length; i++) {
             boolean startsWith = line.contains(ignored[i]);
             boolean endsWith = line.contains(closeTag[i]);

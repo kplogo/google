@@ -8,14 +8,16 @@ import java.util.stream.Stream;
 
 public class Document {
     private final String filename;
+    private final List<String> author;
     private final String title;
     private final String content;
     private final List<String> declaredKeywords;
     private final Map<SiblingKey, SiblingList> siblings = new HashMap<>();
     private Map<String, Map<Keyword, Integer>> parsedSiblings = new HashMap<>();
 
-    public Document(String filename, String title, String content, String[] declaredKeywords) {
+    public Document(String filename, List<String> author, String title, String content, String[] declaredKeywords) {
         this.filename = filename;
+        this.author = author;
         this.title = title;
         this.content = content;
         this.declaredKeywords = new ArrayList<>();
@@ -92,5 +94,9 @@ public class Document {
 
     private String getParsedSiblingsKey(int wordCount) {
         return "Parsed" + wordCount;
+    }
+
+    public List<String> getAuthor() {
+        return author;
     }
 }
