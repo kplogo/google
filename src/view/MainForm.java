@@ -1,12 +1,10 @@
 package view;
 
-import model.DatabaseCollection;
 import model.Document;
 import model.Keyword;
-import service.DocumentParser;
+import service.DataService;
 import service.SiblingUtil;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -26,17 +24,15 @@ public class MainForm {
     }
 
     public MainForm() {
-        String directory = "c:\\studia\\google\\resources\\data\\";
-        File file = new File(directory);
-        int processedFile = processFile(file);
+        List<Document> allDocuments = new DataService("c:\\studia\\google\\resources\\data\\").getAllDocuments();
         //s³owa kluczowe dla okreœlonych dokumentów
-        DatabaseCollection.getDocumentList().forEach(this::printDocument);
+        allDocuments.forEach(this::printDocument);
         //s³owa kluczowe dla zbioru dokumentów
-        printRelatedKeywords(DatabaseCollection.getDocumentList());
+        printRelatedKeywords(allDocuments);
 
         printAllKeywordList();
         System.out.println("---------------------------------------");
-        System.out.println("Przetworzono plikow: " + processedFile);
+        System.out.println("Przetworzono plikow: " + allDocuments.size());
     }
 
     private void printAllKeywordList() {
@@ -59,7 +55,7 @@ public class MainForm {
     private void printRelatedKeywordDeclared(List<Document> documentList, Document document) {
         for (String keyword : document.getDeclaredKeywords()) {
             Keyword preparedKeyword = Keyword.createKeywordFromString(keyword);
-            processKeyword(documentList, preparedKeyword, preparedKeyword.getWordCount(),PRINT_RELATED_KEYWORDS_DECLARED);
+            processKeyword(documentList, preparedKeyword, preparedKeyword.getWordCount(), PRINT_RELATED_KEYWORDS_DECLARED);
         }
     }
 
@@ -68,7 +64,7 @@ public class MainForm {
             int wordCount = i;
             Map<Keyword, Integer> siblings = document.getParsedSiblings(wordCount);
             SiblingUtil.reduceSiblings(siblings, 5)
-                    .forEach(entry -> processKeyword(documentList, entry.getKey(), wordCount,PRINT_RELATED_KEYWORDS_PARSED));
+                    .forEach(entry -> processKeyword(documentList, entry.getKey(), wordCount, PRINT_RELATED_KEYWORDS_PARSED));
         }
     }
 
@@ -78,7 +74,7 @@ public class MainForm {
         } else {
             processedKeywords.add(keyword);
         }
-        if (!print){
+        if (!print) {
             return;
         }
         System.out.println("Slowo kluczowe:");
@@ -96,29 +92,6 @@ public class MainForm {
 
     }
 
-    private int processFile(File file) {
-        if (file.isDirectory()) {
-            File[] fileList = file.listFiles();
-            if (fileList == null) {
-                return 0;
-            }
-            int count = 0;
-            for (File file1 : fileList) {
-                count += processFile(file1);
-            }
-            return count;
-        }
-        if (file.getName().toLowerCase().endsWith("tex") || file.getName().toLowerCase().endsWith("txt")) {
-            searchFile(file.getAbsolutePath());
-            return 1;
-        }
-        return 0;
-    }
-
-
-    private void searchFile(String filename) {
-        new DocumentParser(filename).parse();
-    }
 
     private void printDocument(Document document) {
         System.out.println("---------------------------DOCUMENT START----------------------------");
