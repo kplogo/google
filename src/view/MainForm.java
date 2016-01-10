@@ -27,11 +27,13 @@ public class MainForm {
 
     public MainForm() {
         String directory = "c:\\studia\\google\\resources\\data\\";
-//        directory = "c:\\studia\\google\\resources\\data\\paper9\\JSPaw2.tex";
         File file = new File(directory);
         int processedFile = processFile(file);
+        //s³owa kluczowe dla okreœlonych dokumentów
         DatabaseCollection.getDocumentList().forEach(this::printDocument);
+        //s³owa kluczowe dla zbioru dokumentów
         printRelatedKeywords(DatabaseCollection.getDocumentList());
+
         printAllKeywordList();
         System.out.println("---------------------------------------");
         System.out.println("Przetworzono plikow: " + processedFile);
@@ -81,7 +83,6 @@ public class MainForm {
         }
         System.out.println("Slowo kluczowe:");
         System.out.println(keyword.getRealName());
-//        System.out.println(keyword.getTermName());
         System.out.println("-----------------------------------------");
         for (Document document : documentList) {
             Map<Keyword, Integer> parsedSiblings = document.getParsedSiblings(wordCount);
@@ -94,7 +95,6 @@ public class MainForm {
         System.out.println("-----------------------------------------");
 
     }
-
 
     private int processFile(File file) {
         if (file.isDirectory()) {
